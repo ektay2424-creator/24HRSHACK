@@ -14,66 +14,22 @@ const SERVICE_LABEL: Record<string, { label: string; emoji: string }> = {
 export function HouseholdOverlaps({ connected }: { connected: boolean }) {
   const toast = useToast();
   const [data, setData] = useState<FamilyResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [consolidating, setConsolidating] = useState(false);
   const [done, setDone] = useState(false);
 
-  const loadFamilyData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await familyOverlaps();
-      setData(result);
-    } catch (err) {
-      setError('Failed to load family data. Please check if the backend is running.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadFamilyData();
+    familyOverlaps().then(({ data }) => setData(data));
   }, []);
 
   const handleConsolidate = async () => {
     setConsolidating(true);
-    try {
-      const result = await familyOverlaps(); // re-fetch to simulate recalculation
-      setData(result);
-      toast('Family subscriptions consolidated. Savings recalculated live.', 'success');
-      setDone(true);
-    } catch {
-      toast('Consolidation failed. Please try again.', 'warning');
-    } finally {
-      setConsolidating(false);
-    }
+    await familyOverlaps();
+    setConsolidating(false);
+    setDone(true);
+    toast('Family subscriptions consolidated. Savings recalculated live.', 'success');
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Panel tone="rose" className="p-6 text-center">
-        <p className="text-rose-300">{error}</p>
-        <button
-          onClick={loadFamilyData}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm text-white hover:bg-indigo-600"
-        >
-          <RefreshCw size={15} /> Retry
-        </button>
-      </Panel>
-    );
-  }
-
-  if (!data) return null;
+  if (!data) return <SkeletonHouse />;
 
   return (
     <div className="space-y-6">
@@ -96,7 +52,7 @@ export function HouseholdOverlaps({ connected }: { connected: boolean }) {
         ))}
       </div>
 
-      {/* Central hero savings banner */}
+      {/* Central hero savings banner — muted mint for savings */}
       <Panel tone="mint" className="relative overflow-hidden p-6 text-center sm:p-8 animate-fade-in-up">
         <div className="absolute inset-0 grid-overlay opacity-20" />
         <div className="relative">
@@ -124,7 +80,7 @@ export function HouseholdOverlaps({ connected }: { connected: boolean }) {
         ))}
       </div>
 
-      {/* Consolidate button */}
+      {/* Consolidate button — indigo primary */}
       <div className="flex justify-center pt-2">
         <button
           onClick={handleConsolidate}
@@ -152,7 +108,7 @@ export function HouseholdOverlaps({ connected }: { connected: boolean }) {
 
       {!connected && (
         <p className="text-center text-xs text-slate-600">
-          Backend at localhost:4000 not reachable – data may be stale.
+          Showing cached household data — backend not reachable. Consolidation still simulates live recalculation.
         </p>
       )}
     </div>
@@ -206,5 +162,18 @@ function OverlapCard({ overlap, delay }: { overlap: Overlap; delay: number }) {
         </div>
       </div>
     </Panel>
+  );
+}
+
+function SkeletonHouse() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-[68px] animate-pulse rounded-xl panel" />
+        ))}
+      </div>
+      <div className="h-44 animate-pulse rounded-xl panel" />
+    </div>
   );
 }
